@@ -1,0 +1,25 @@
+{
+  "name": "xenia-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that reads and writes a running Xenia (Xbox 360 emulator) process's guest memory",
+  "type": "module",
+  "main": "dist/src/index.js",
+  "bin": {
+    "xenia-mcp": "dist/src/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/src/index.js",
+    "test": "npm run build && node dist/test/run.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "koffi": "^3.3.3",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  }
+}
