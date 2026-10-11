@@ -41,6 +41,9 @@ export class Gta4Index {
       `${this.decomp.size} decompiled${this.decompDir ? ` (${this.decompDir})` : ' (set GTA4_DECOMP_DIR)'}`;
   }
 
+  /** Every indexed function, by address. */
+  all(): Fn[] { return this.fns; }
+
   /** The function holding `addr`. */
   at(addr: number): Fn | null {
     let lo = 0, hi = this.fns.length - 1, best = -1;

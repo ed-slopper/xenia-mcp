@@ -7,6 +7,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { XeniaSession, ValueType, SIZES, hexdump, encode, IMAGE_BASE } from './xenia.js';
 import { Gta4Index, fnLine } from './gta4.js';
+import { watch } from './watch.js';
 
 const server = new McpServer({ name: 'xenia-mcp', version: '0.1.0' });
 let session: XeniaSession | null = null;
@@ -163,6 +164,26 @@ tool('gta4_decompiled', 'GTA IV TU8: the decompiled C of the function holding an
   const src = index().decompiled(f ? f.address : at);
   if (!src) return `No decompiled C for ${hx(at)}. ${index().describe()}.`;
   return (f ? `// ${fnLine(f)}\n` : '') + src;
+});
+
+tool('xenia_watch', 'Data watchpoint: count every access (or every write) to a guest address for a while, and name the guest ' +
+  'functions that made them. Uses native/xwatch.exe, which attaches to Xenia as a debugger for that time (the game ' +
+  'slows while watched) and detaches again; Xenia is not stopped or killed.', {
+  address: Addr,
+  length: z.union([z.literal(1), z.literal(2), z.literal(4), z.literal(8)]).default(4)
+    .describe('Bytes watched: 1, 2, 4 or 8 (the address must be aligned to it)'),
+  mode: z.enum(['rw', 'w']).default('rw').describe('rw: reads and writes; w: writes only'),
+  ms: z.number().int().min(100).max(60000).default(2000).describe('How long to watch, in milliseconds'),
+}, a => {
+  const at = addr(a.address);
+  const r = watch(need(), at, a.length, a.mode, a.ms, index().all());
+  const lines = r.hits.map(h => {
+    const f = h.fn;
+    const name = f ? `${f.name || f.cls || 'fn'} ${hx(f.address)}` : '(not an indexed function: host or kernel code)';
+    return `${String(h.count).padStart(7)}  host 0x${h.rip.toString(16)}  ${name}`;
+  });
+  return `${r.total} hits on ${hx(at)} (${a.length} bytes, ${a.mode}) in ${a.ms} ms, ${r.hits.length} sites, ` +
+    `${r.threads} threads watched; ${r.compiled} compiled guest functions mapped.\n` + (lines.join('\n') || '(no access)');
 });
 
 await server.connect(new StdioServerTransport());

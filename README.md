@@ -9,8 +9,11 @@ of its own memory (normally at host `0x1_0000_0000`), so guest address `g` is `b
 to the Xenia process with the Windows debugging APIs (ReadProcessMemory / WriteProcessMemory) and finds the
 base by looking for the game's executable image, which a 360 title loads at `0x82000000`.
 
-What it cannot do yet: breakpoints, registers, stepping. Those need a small debug server built into Xenia
-(the way [PCSX2-MCP](https://github.com/hkmodd/PCSX2-MCP) patches PCSX2); that is the planned second part.
+It can also watch a guest address with a hardware data breakpoint (`xenia_watch`): the small native helper
+`native/xwatch.exe` attaches to Xenia as a debugger for the time asked, counts every access to the field,
+and detaches again. Each access is named by the guest function that made it, through Xenia's own
+indirection table (at host address `a`, the 32-bit word is the host address of guest function `a`'s compiled
+code). Code breakpoints, registers and stepping are still to come.
 
 ```
 AI assistant  <-- stdio (MCP) -->  xenia-mcp (Node)  <-- ReadProcessMemory -->  xenia_canary.exe
@@ -58,6 +61,7 @@ Then start Xenia, load the game, and ask the assistant to connect.
 | `xenia_freeze`, `xenia_unfreeze` | hold a value |
 | `gta4_lookup` | the TU8 function holding an address, or functions by name or class |
 | `gta4_decompiled` | the decompiled C of the function holding an address |
+| `xenia_watch` | a data watchpoint: every read and write (or only writes) of a guest address for a few seconds, counted by the guest function that made it |
 
 Example, checking the port's entity fade (board row R20a) against the game: find an entity, then
 `xenia_read_values` on its `+0x63` byte a few times as it comes on screen: 0, 16, 32 ... 255.
@@ -75,3 +79,14 @@ part against it, the MCP server included (over stdio, as an assistant would).
 ## License
 
 MIT.
+
+## The watch helper
+
+`xenia_watch` needs `native/xwatch.exe` (or set `XWATCH_EXE`). Build it with the Visual Studio Build Tools
+(`native/build.cmd` calls `vcvars64.bat`, then `cl /O2 xwatch.c`). It uses DR0 of every thread, so only one
+watch at a time, and the game runs slowly while it is attached. Every single-step trap is handled by the helper
+and never passed back to Xenia: an unhandled one kills Xenia. `native/xwatch_target.c` is a test program to
+attach to and detach from many times (`build_target.cmd`).
+
+A guest address only names the function once Xenia has compiled it; hits from Xenia's own host code (the
+kernel, the GPU) show without a name.
